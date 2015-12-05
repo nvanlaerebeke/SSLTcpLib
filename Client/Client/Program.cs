@@ -5,12 +5,22 @@ using log4net;
 using System.Threading;
 
 [assembly: log4net.Config.XmlConfigurator(Watch = true)]
+
+/**
+ *
+ * Make the server cert by running:
+ *   makecert -r -pe -n “CN=SslClient” -ss my -sr currentuser -sky exchange client.cer
+ *
+ * Or use openssl (nomadesk-ca)
+ * 
+ */
+
 namespace Client {
     class Program {
         protected static readonly ILog Log = LogManager.GetLogger(typeof(Program));
 
         static void Main(string[] args) {
-            int count = 5;
+            int count = 1;
             
             Log.Debug(string.Format("Starting {0} clients...", count.ToString()));
 
@@ -26,12 +36,12 @@ namespace Client {
                 };
 
                 //when receiving data, log it
-                objClient.dataReceived += delegate(SSLTcpClient pClient, string pData) {
-                    Log.Debug(pData);
+                objClient.dataReceived += delegate(SSLTcpClient pClient, byte[] pData) {
+                    Log.Debug(System.Text.Encoding.UTF8.GetString(pData));
                 };
 
                 //connect the client
-                objClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 51510);
+                objClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 51510, @"z:\nmua000001.der", "vandaag");
             }
 
             while (true) { }

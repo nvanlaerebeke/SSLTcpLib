@@ -1,17 +1,20 @@
 ﻿using System;
-using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace SSLTcpLib {
     public sealed partial class SSLTcpClient : IDisposable {
         /**
-         * Private fields
+         * Public fields
          */
-        private StreamReader _reader;
-        private StreamWriter _writer;
-
+        public SslStream SslStream { get; private set; }
+        
         /**
          * Events
          */
@@ -23,29 +26,34 @@ namespace SSLTcpLib {
          * Constructors
          */
         public SSLTcpClient() { }
-        public SSLTcpClient(TcpClient pClient) {
-            init(pClient);
-        }
+        public SSLTcpClient(TcpClient pClient, X509Certificate2 pCert) {
+            SslStream = new SslStream(
+                pClient.GetStream(),
+                false,
+                new RemoteCertificateValidationCallback(
+                    delegate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) {
+                        return true;
+                    }
+                ),
+                new LocalCertificateSelectionCallback(
+                    delegate(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate remoteCertificate, string[] acceptableIssuers) {
+                        return new X509Certificate2(pCert);
+                    }
+                )
+            );
 
-        /**
-         * Connect the TcpClient
-         */
-        public async void ConnectAsync(IPAddress pIP, int pPort) {
-            TcpClient objClient = new TcpClient();
-            await objClient.ConnectAsync(pIP, pPort);
-
-            init(objClient);
-        }
-
-        /**
-         * Initialization
-         */
-        private void init(TcpClient pClient) {
-            NetworkStream stream = pClient.GetStream();
-
-            _reader = new StreamReader(stream);
-            _writer = new StreamWriter(stream);
-            _writer.AutoFlush = true;
+            try {
+                SslStream.AuthenticateAsServer(pCert, true, SslProtocols.Tls, true);
+            } catch (AuthenticationException e) {
+                Console.WriteLine("Exception: {0}", e.Message);
+                if (e.InnerException != null) {
+                    Console.WriteLine("Inner exception: {0}", e.InnerException.Message);
+                }
+                Console.WriteLine("Authentication failed - closing the connection.");
+                SslStream.Close();
+                pClient.Close();
+                return;
+            }
 
             Thread objThread = new Thread(new ThreadStart(RunListener));
             objThread.Start();
@@ -55,15 +63,73 @@ namespace SSLTcpLib {
             }
         }
 
+        /**
+         * Connect the TcpClient
+         */
+        public async void ConnectAsync(IPAddress pIP, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
+            TcpClient objClient = new TcpClient();
+            await objClient.ConnectAsync(pIP, pPort);
+
+            X509Certificate2 clientCertificate;
+            X509Certificate2Collection clientCertificatecollection = new X509Certificate2Collection();
+            try {
+                clientCertificate = new X509Certificate2(pX509CertificatePath, pX509CertificatePassword);
+                clientCertificatecollection.Add(clientCertificate);
+             } catch(CryptographicException) {
+                objClient.Close();
+                return;
+            }
+
+            SslStream = new SslStream(
+                objClient.GetStream(), 
+                false, 
+                new RemoteCertificateValidationCallback(
+                    delegate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) { 
+                        return true;
+                    }
+                ), 
+                new LocalCertificateSelectionCallback(
+                    delegate(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate remoteCertificate, string[] acceptableIssuers) {
+                        var cert = new X509Certificate2(pX509CertificatePath, pX509CertificatePassword);
+                        return cert;
+                    }
+                )
+            );
+
+            try {
+                SslStream.AuthenticateAsClient(pIP.ToString(), clientCertificatecollection, SslProtocols.Tls, false);
+            } catch (AuthenticationException e) {
+                Console.WriteLine("Exception: {0}", e.Message);
+                if (e.InnerException != null) {
+                    Console.WriteLine("Inner exception: {0}", e.InnerException.Message);
+                }
+                Console.WriteLine("Authentication failed - closing the connection.");
+                objClient.Close();
+                return;
+            }
+
+            Thread objThread = new Thread(new ThreadStart(RunListener));
+            objThread.Start();
+
+            if (connected != null) {
+                connected(this);
+            }
+        }
 
         /**
          * Reading
          */
         private async void RunListener() {
             while (true) {
-                var dataFromServer = await _reader.ReadLineAsync();
-                if (!String.IsNullOrEmpty(dataFromServer) && dataReceived != null) {
-                    dataReceived(this, dataFromServer);
+                byte[] bytes = new byte[8];
+                await SslStream.ReadAsync(bytes, 0, (int)bytes.Length);
+                
+                int bufLenght =  BitConverter.ToInt32(bytes, 0);
+                byte[] buffer = new byte[bufLenght];
+                SslStream.Read(buffer, 0, bufLenght);
+                
+                if (dataReceived != null) {
+                    dataReceived(this, buffer);
                 }
             }
         }
@@ -71,17 +137,26 @@ namespace SSLTcpLib {
         /**
          * Writing 
          */
-        public async void Send(string pData) {
-            await _writer.WriteLineAsync(pData);
+        public async Task<bool> Send(byte[] pData) {
+            byte[] lenght = BitConverter.GetBytes(pData.Length);
+            Array.Resize(ref lenght, 8);
+
+            SslStream.Write(lenght);
+            await SslStream.WriteAsync(pData, 0, pData.Length);
+
+            return true;
         }
 
+        public async Task<bool> Send(string pData) {
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(pData);
+            return await Send(bytes);
+        }
 
         /**
          * Shutdown
          */
         public void Dispose() {
-            _reader.Close();
-            _writer.Close();
+            SslStream.Close();
             if (disconnected != null) {
                 disconnected(this);
             }

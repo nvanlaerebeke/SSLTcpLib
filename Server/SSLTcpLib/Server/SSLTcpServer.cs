@@ -1,26 +1,30 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using log4net;
+using System.Security.Cryptography.X509Certificates;
 
 namespace SSLTcpLib {
     public delegate void ConnectionHandler(SSLTcpClient pClient);
-    public delegate void DataTransfer(SSLTcpClient pClient, string pData);
+    public delegate void DataTransfer(SSLTcpClient pClient, byte[] pData);
     
     public class SSLTcpServer : Base {
+        private X509Certificate2 serverCertificate = null;
+
         private IPAddress IPAddress { get; set; }
         private int Port { get; set; }
 
         public event ConnectionHandler clientConnected;
         public event ConnectionHandler clientDisconnected;
 
-        public SSLTcpServer(IPAddress pIPAddress, int pPort) {
+        public SSLTcpServer(IPAddress pIPAddress, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
             IPAddress = pIPAddress;
             Port = pPort;
+            serverCertificate = new X509Certificate2(pX509CertificatePath);
         }
 
         public async void Start() {
             Log.Debug("Server is starting...");
+            
             TcpListener listener = new TcpListener(IPAddress, Port);
             listener.Start();
             
@@ -40,7 +44,7 @@ namespace SSLTcpLib {
 
         private void HandleConnection(TcpClient pTcpClient) {
             if (clientConnected != null) {
-                SSLTcpClient objClient = new SSLTcpClient(pTcpClient);
+                SSLTcpClient objClient = new SSLTcpClient(pTcpClient, serverCertificate);
                 objClient.disconnected += objClient_disconnected;
                 clientConnected(objClient);
             }
