@@ -34,7 +34,7 @@ namespace SSLTcpLib {
                 try {
                     var tcpClient = await listener.AcceptTcpClientAsync();
                     HandleConnection(tcpClient);
-                } catch (Exception exp) {
+                } catch (Exception) {
                     Log.Debug("Unable to accept connection");
                 }
 

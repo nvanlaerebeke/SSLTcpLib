@@ -60,10 +60,12 @@ namespace SSLTcpLib {
         /**
          * Connect the TcpClient
          */
-        public async Task<bool> ConnectAsync(IPAddress pIP, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
+        public bool ConnectAsync(IPAddress pIP, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
             TcpClient objClient = new TcpClient();
             try {
-                await objClient.ConnectAsync(pIP, pPort);
+                if(!objClient.ConnectAsync(pIP, pPort).Wait(1000)) {
+                    throw new Exception("Connect failed");
+                };
             } catch (Exception) {
                 return false;
             }
@@ -119,11 +121,13 @@ namespace SSLTcpLib {
                     await SslStream.ReadAsync(bytes, 0, (int)bytes.Length);
 
                     int bufLenght = BitConverter.ToInt32(bytes, 0);
-                    byte[] buffer = new byte[bufLenght];
-                    SslStream.Read(buffer, 0, bufLenght);
+                    if (bufLenght > 0) {
+                        byte[] buffer = new byte[bufLenght];
+                        SslStream.Read(buffer, 0, bufLenght);
 
-                    if (dataReceived != null) {
-                        dataReceived(this, buffer);
+                        if (dataReceived != null) {
+                            dataReceived(this, buffer);
+                        }
                     }
                 }
             } catch (Exception) {
@@ -134,13 +138,15 @@ namespace SSLTcpLib {
         /**
          * Writing 
          */
-        public async Task<bool> Send(byte[] pData) {
+        public bool Send(byte[] pData) {
             try {
                 byte[] lenght = BitConverter.GetBytes(pData.Length);
                 Array.Resize(ref lenght, 8);
 
                 SslStream.Write(lenght);
-                await SslStream.WriteAsync(pData, 0, pData.Length);
+                if (!SslStream.WriteAsync(pData, 0, pData.Length).Wait(1000)) {
+                    throw new Exception("Send timed out");
+                }
             } catch (Exception) {
                 Dispose();
                 return false;
@@ -148,9 +154,9 @@ namespace SSLTcpLib {
             return true;
         }
 
-        public async Task<bool> Send(string pData) {
+        public bool Send(string pData) {
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(pData);
-            return await Send(bytes);
+            return Send(bytes);
         }
 
         /**

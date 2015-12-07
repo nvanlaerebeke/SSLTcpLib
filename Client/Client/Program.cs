@@ -47,9 +47,8 @@ namespace Client {
                 };
 
                 //connect the client
-                Task<bool> result = objClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 51510, @"z:\nmua000001.der", "vandaag");
-                result.Wait();
-                if (!result.Result) {
+                bool result = objClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 51510, @"z:\nmua000001.der", "vandaag");
+                if (!result) {
                     Log.Debug("Connect failed");
                 }
             }
@@ -60,12 +59,11 @@ namespace Client {
         }
 
         private static void SendData(SSLTcpClient pClient, string pName) {
-            Task<bool> result;
+            bool result;
             do {
                 result = pClient.Send("This is client " + pName);
-                result.Wait();
                 System.Threading.Thread.Sleep(1000);
-            } while (result.Result);
+            } while (result);
             Log.Debug("Failed sending, stopping loop");
         }
     }

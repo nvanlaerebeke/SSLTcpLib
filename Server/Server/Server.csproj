@@ -55,7 +55,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SSLTcpLib\SSLTcpLib.csproj">
+    <ProjectReference Include="..\..\SSLTcpLib\SSLTcpLib.csproj">
       <Project>{a3f4149b-1ee2-4376-8b3f-2ce4869e3a17}</Project>
       <Name>SSLTcpLib</Name>
     </ProjectReference>

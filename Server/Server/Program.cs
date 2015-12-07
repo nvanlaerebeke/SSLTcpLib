@@ -51,15 +51,13 @@ namespace Server {
             t.Start();
         }
 
-
         private static void SendData(SSLTcpClient pClient) {
             //Start sending data
-            Task<bool> result;
+            bool result;
             do {
                 result = pClient.Send("This is the server");
-                result.Wait();
                 System.Threading.Thread.Sleep(1000);
-            } while (result.Result);
+            } while (result);
             Log.Debug("Sending failed, stopping loop");
         }
     }

@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.21005.1
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{34388378-D59D-41BB-85FC-C93037AC507A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SSLTcpLib", "..\Server\SSLTcpLib\SSLTcpLib.csproj", "{A3F4149B-1EE2-4376-8B3F-2CE4869E3A17}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SSLTcpLib", "..\SSLTcpLib\SSLTcpLib.csproj", "{A3F4149B-1EE2-4376-8B3F-2CE4869E3A17}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
