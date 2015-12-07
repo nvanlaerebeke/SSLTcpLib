@@ -35,11 +35,10 @@ namespace SSLTcpLib {
                     var tcpClient = await listener.AcceptTcpClientAsync();
                     HandleConnection(tcpClient);
                 } catch (Exception exp) {
-                    Log.Debug(exp.ToString());
+                    Log.Debug("Unable to accept connection");
                 }
 
             }
-
         }
 
         private void HandleConnection(TcpClient pTcpClient) {
@@ -51,6 +50,7 @@ namespace SSLTcpLib {
         }
 
         void objClient_disconnected(SSLTcpClient pClient) {
+            pClient.disconnected -= objClient_disconnected;
             if (clientDisconnected != null) {
                 clientDisconnected(pClient);
             }

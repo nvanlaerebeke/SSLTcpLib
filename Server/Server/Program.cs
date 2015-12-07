@@ -9,6 +9,7 @@ using log4net;
 using SSLTcpLib;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 [assembly: log4net.Config.XmlConfigurator(Watch=true)]
 
@@ -26,7 +27,7 @@ namespace Server {
         List<SSLTcpClient> _lstClients = new List<SSLTcpClient>();
 
         static void Main(string[] args) {
-            SSLTcpServer objServer = new SSLTcpServer(IPAddress.Any, 51510, @"z:\server.pfx", "vandaag");
+            SSLTcpServer objServer = new SSLTcpServer(IPAddress.Any, 51510, @"server.pfx", "vandaag");
             objServer.clientConnected += objServer_clientConnected;
             objServer.clientDisconnected += objServer_clientDisconnected;
             objServer.Start();
@@ -34,6 +35,7 @@ namespace Server {
         }
 
         static void objServer_clientDisconnected(SSLTcpClient pClient) {
+            pClient.disconnected -= objServer_clientDisconnected;
             Log.Debug("Client Disconnected");
         }
 
@@ -52,10 +54,13 @@ namespace Server {
 
         private static void SendData(SSLTcpClient pClient) {
             //Start sending data
-            while (true) {
+            Task<bool> result;
+            do {
+                result = pClient.Send("This is the server");
+                result.Wait();
                 System.Threading.Thread.Sleep(1000);
-                pClient.Send("This is the server");
-            }
+            } while (result.Result);
+            Log.Debug("Sending failed, stopping loop");
         }
     }
 }

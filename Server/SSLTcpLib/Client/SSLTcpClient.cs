@@ -44,13 +44,7 @@ namespace SSLTcpLib {
 
             try {
                 SslStream.AuthenticateAsServer(pCert, true, SslProtocols.Tls, true);
-            } catch (AuthenticationException e) {
-                Console.WriteLine("Exception: {0}", e.Message);
-                if (e.InnerException != null) {
-                    Console.WriteLine("Inner exception: {0}", e.InnerException.Message);
-                }
-                Console.WriteLine("Authentication failed - closing the connection.");
-                SslStream.Close();
+            } catch (AuthenticationException) {
                 pClient.Close();
                 return;
             }
@@ -66,10 +60,13 @@ namespace SSLTcpLib {
         /**
          * Connect the TcpClient
          */
-        public async void ConnectAsync(IPAddress pIP, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
+        public async Task<bool> ConnectAsync(IPAddress pIP, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
             TcpClient objClient = new TcpClient();
-            await objClient.ConnectAsync(pIP, pPort);
-
+            try {
+                await objClient.ConnectAsync(pIP, pPort);
+            } catch (Exception) {
+                return false;
+            }
             X509Certificate2 clientCertificate;
             X509Certificate2Collection clientCertificatecollection = new X509Certificate2Collection();
             try {
@@ -77,7 +74,7 @@ namespace SSLTcpLib {
                 clientCertificatecollection.Add(clientCertificate);
              } catch(CryptographicException) {
                 objClient.Close();
-                return;
+                return false;
             }
 
             SslStream = new SslStream(
@@ -98,14 +95,9 @@ namespace SSLTcpLib {
 
             try {
                 SslStream.AuthenticateAsClient(pIP.ToString(), clientCertificatecollection, SslProtocols.Tls, false);
-            } catch (AuthenticationException e) {
-                Console.WriteLine("Exception: {0}", e.Message);
-                if (e.InnerException != null) {
-                    Console.WriteLine("Inner exception: {0}", e.InnerException.Message);
-                }
-                Console.WriteLine("Authentication failed - closing the connection.");
+            } catch (AuthenticationException) {
                 objClient.Close();
-                return;
+                return false;
             }
 
             Thread objThread = new Thread(new ThreadStart(RunListener));
@@ -114,23 +106,28 @@ namespace SSLTcpLib {
             if (connected != null) {
                 connected(this);
             }
+            return true;
         }
 
         /**
          * Reading
          */
         private async void RunListener() {
-            while (true) {
-                byte[] bytes = new byte[8];
-                await SslStream.ReadAsync(bytes, 0, (int)bytes.Length);
-                
-                int bufLenght =  BitConverter.ToInt32(bytes, 0);
-                byte[] buffer = new byte[bufLenght];
-                SslStream.Read(buffer, 0, bufLenght);
-                
-                if (dataReceived != null) {
-                    dataReceived(this, buffer);
+            try {
+                while (true) {
+                    byte[] bytes = new byte[8];
+                    await SslStream.ReadAsync(bytes, 0, (int)bytes.Length);
+
+                    int bufLenght = BitConverter.ToInt32(bytes, 0);
+                    byte[] buffer = new byte[bufLenght];
+                    SslStream.Read(buffer, 0, bufLenght);
+
+                    if (dataReceived != null) {
+                        dataReceived(this, buffer);
+                    }
                 }
+            } catch (Exception) {
+                Dispose();
             }
         }
 
@@ -138,12 +135,16 @@ namespace SSLTcpLib {
          * Writing 
          */
         public async Task<bool> Send(byte[] pData) {
-            byte[] lenght = BitConverter.GetBytes(pData.Length);
-            Array.Resize(ref lenght, 8);
+            try {
+                byte[] lenght = BitConverter.GetBytes(pData.Length);
+                Array.Resize(ref lenght, 8);
 
-            SslStream.Write(lenght);
-            await SslStream.WriteAsync(pData, 0, pData.Length);
-
+                SslStream.Write(lenght);
+                await SslStream.WriteAsync(pData, 0, pData.Length);
+            } catch (Exception) {
+                Dispose();
+                return false;
+            }
             return true;
         }
 
