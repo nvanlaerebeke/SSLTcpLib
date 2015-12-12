@@ -47,7 +47,7 @@ namespace Client {
                 };
 
                 //connect the client
-                bool result = objClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 51510, @"z:\nmua000001.der", "vandaag");
+                bool result = objClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 51510, @"YOUR CERT PATH HERE", "PASSWORD");
                 if (!result) {
                     Log.Debug("Connect failed");
                 }

@@ -1,15 +1,9 @@
-﻿using System;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Threading;
-
-using log4net;
+﻿using log4net;
 using SSLTcpLib;
+using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
+using System.Net;
+using System.Threading;
 
 [assembly: log4net.Config.XmlConfigurator(Watch=true)]
 
@@ -27,7 +21,7 @@ namespace Server {
         List<SSLTcpClient> _lstClients = new List<SSLTcpClient>();
 
         static void Main(string[] args) {
-            SSLTcpServer objServer = new SSLTcpServer(IPAddress.Any, 51510, @"server.pfx", "vandaag");
+            SSLTcpServer objServer = new SSLTcpServer(IPAddress.Any, 51510, System.Convert.ToBase64String(System.IO.File.ReadAllBytes(@"server.pfx")), "MYPASSWORD");
             objServer.clientConnected += objServer_clientConnected;
             objServer.clientDisconnected += objServer_clientDisconnected;
             objServer.Start();
