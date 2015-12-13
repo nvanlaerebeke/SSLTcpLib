@@ -16,10 +16,10 @@ namespace SSLTcpLib {
         public event ConnectionHandler clientConnected;
         public event ConnectionHandler clientDisconnected;
 
-        public SSLTcpServer(IPAddress pIPAddress, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
+        public SSLTcpServer(IPAddress pIPAddress, int pPort, string pX509Certificate, string pX509CertificatePassword) {
             IPAddress = pIPAddress;
             Port = pPort;
-            serverCertificate = new X509Certificate2(pX509CertificatePath);
+            serverCertificate = new X509Certificate2(Convert.FromBase64String(pX509Certificate), pX509CertificatePassword);
         }
 
         public async void Start() {
