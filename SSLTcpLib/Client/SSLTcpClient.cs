@@ -8,7 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 
 namespace SSLTcpLib {
-    public sealed partial class SSLTcpClient : IDisposable {
+    public class SSLTcpClient : IDisposable {
         /**
          * Public fields
          */
@@ -116,17 +116,19 @@ namespace SSLTcpLib {
         private async void RunListener() {
             try {
                 while (true) {
-                    byte[] bytes = new byte[8];
+                    byte[] bytes = new byte[4];
                     await SslStream.ReadAsync(bytes, 0, (int)bytes.Length);
 
                     int bufLenght = BitConverter.ToInt32(bytes, 0);
                     if (bufLenght > 0) {
                         byte[] buffer = new byte[bufLenght];
-                        SslStream.Read(buffer, 0, bufLenght);
+                        await SslStream.ReadAsync(buffer, 0, bufLenght);
 
                         if (dataReceived != null) {
                             dataReceived(this, buffer);
                         }
+                    } else {
+                        Dispose();
                     }
                 }
             } catch (Exception) {
@@ -140,7 +142,7 @@ namespace SSLTcpLib {
         public bool Send(byte[] pData) {
             try {
                 byte[] lenght = BitConverter.GetBytes(pData.Length);
-                Array.Resize(ref lenght, 8);
+                Array.Resize(ref lenght, 4);
 
                 SslStream.Write(lenght);
                 if (!SslStream.WriteAsync(pData, 0, pData.Length).Wait(1000)) {
