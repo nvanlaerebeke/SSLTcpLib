@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -6,6 +7,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace SSLTcpLib {
     public class SSLTcpClient : IDisposable {
@@ -13,7 +15,7 @@ namespace SSLTcpLib {
          * Public fields
          */
         public SslStream SslStream { get; private set; }
-        
+
         /**
          * Events
          */
@@ -62,7 +64,7 @@ namespace SSLTcpLib {
         public bool ConnectAsync(IPAddress pIP, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
             TcpClient objClient = new TcpClient();
             try {
-                if(!objClient.ConnectAsync(pIP, pPort).Wait(1000)) {
+                if (!objClient.ConnectAsync(pIP, pPort).Wait(1000)) {
                     throw new Exception("Connect failed");
                 };
             } catch (Exception) {
@@ -73,19 +75,19 @@ namespace SSLTcpLib {
             try {
                 clientCertificate = new X509Certificate2(pX509CertificatePath, pX509CertificatePassword);
                 clientCertificatecollection.Add(clientCertificate);
-             } catch(CryptographicException) {
+            } catch (CryptographicException) {
                 objClient.Close();
                 return false;
             }
 
             SslStream = new SslStream(
-                objClient.GetStream(), 
-                false, 
+                objClient.GetStream(),
+                false,
                 new RemoteCertificateValidationCallback(
-                    delegate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) { 
+                    delegate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) {
                         return true;
                     }
-                ), 
+                ),
                 new LocalCertificateSelectionCallback(
                     delegate(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate remoteCertificate, string[] acceptableIssuers) {
                         var cert = new X509Certificate2(pX509CertificatePath, pX509CertificatePassword);
@@ -116,16 +118,16 @@ namespace SSLTcpLib {
         private async void RunListener() {
             try {
                 while (true) {
-                    byte[] bytes = new byte[4];
-                    await SslStream.ReadAsync(bytes, 0, (int)bytes.Length);
+                    //Message length length = int 
+                    byte[] bytes = await ReadBytes(4);
+                    int msgLength = BitConverter.ToInt32(bytes, 0);
 
-                    int bufLenght = BitConverter.ToInt32(bytes, 0);
-                    if (bufLenght > 0) {
-                        byte[] buffer = new byte[bufLenght];
-                        await SslStream.ReadAsync(buffer, 0, bufLenght);
+                    //get the message
+                    if (msgLength > 0) {
+                        byte[] message = await ReadBytes(msgLength);
 
                         if (dataReceived != null) {
-                            dataReceived(this, buffer);
+                            dataReceived(this, message);
                         }
                     } else {
                         Dispose();
@@ -134,6 +136,17 @@ namespace SSLTcpLib {
             } catch (Exception) {
                 Dispose();
             }
+        }
+
+        private async Task<byte[]> ReadBytes(int pAmount) {
+            byte[] buffer = new byte[pAmount];
+            int read = 0, offset = 0, toRead = pAmount;
+            while (toRead > 0 && (read = await SslStream.ReadAsync(buffer, offset, toRead)) > 0) {
+                toRead -= read;
+                offset += read;
+            }
+            if (toRead > 0) throw new EndOfStreamException();
+            return buffer;
         }
 
         /**

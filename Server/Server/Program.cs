@@ -21,7 +21,7 @@ namespace Server {
         List<SSLTcpClient> _lstClients = new List<SSLTcpClient>();
 
         static void Main(string[] args) {
-            SSLTcpServer objServer = new SSLTcpServer(IPAddress.Any, 51510, System.Convert.ToBase64String(System.IO.File.ReadAllBytes(@"server.pfx")), "MYPASSWORD");
+            SSLTcpServer objServer = new SSLTcpServer(IPAddress.Any, 51510, System.Convert.ToBase64String(System.IO.File.ReadAllBytes(@"server.pfx")), "");
             objServer.clientConnected += objServer_clientConnected;
             objServer.clientDisconnected += objServer_clientDisconnected;
             objServer.Start();
