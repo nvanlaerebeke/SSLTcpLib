@@ -5,7 +5,8 @@ using log4net;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
-
+using SSLTcpLib.Senders;
+using SSLTcpLib.Client;
 [assembly: log4net.Config.XmlConfigurator(Watch = true)]
 
 /**
@@ -30,10 +31,10 @@ namespace Client {
                 Log.Debug(string.Format("Starting client {0}", (i + 1).ToString()));
 
                 SSLTcpClient objClient = new SSLTcpClient();
-
+                TextSender objSender = new TextSender(objClient);
                 //when connected, start sending strings
                 objClient.connected += delegate(SSLTcpClient pClient) {
-                    var t = new Thread(() => SendData(pClient, i.ToString()));
+                    var t = new Thread(() => SendData(objSender, i.ToString()));
                     t.Start();
                 };
 
@@ -42,14 +43,16 @@ namespace Client {
                 };
 
                 //when receiving data, log it
-                objClient.dataReceived += delegate(SSLTcpClient pClient, byte[] pData) {
+                objClient.dataReceived += delegate(byte[] pData) {
                     Log.Debug(System.Text.Encoding.UTF8.GetString(pData));
                 };
 
                 //connect the client
-                bool result = objClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 51510, @"nmua000001.der", "vandaag");
-                if (!result) {
+                try {
+                    objClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 51510, @"nmua000001.der", "vandaag");
+                } catch(Exception ex) {
                     Log.Debug("Connect failed");
+                    Log.Error(ex);
                 }
             }
 
@@ -58,13 +61,16 @@ namespace Client {
             }
         }
 
-        private static void SendData(SSLTcpClient pClient, string pName) {
-            bool result;
-            do {
-                result = pClient.Send("This is client " + pName);
-                System.Threading.Thread.Sleep(1000);
-            } while (result);
-            Log.Debug("Failed sending, stopping loop");
+        private static void SendData(TextSender pSender, string pName) {
+            try {
+                do {
+                    pSender.Send("This is client " + pName);
+                    System.Threading.Thread.Sleep(1000);
+                } while (true);
+            } catch(Exception ex) {
+                Log.Debug("Failed sending, stopping loop");
+                Log.Debug(ex);
+            }
         }
     }
 }

@@ -9,7 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SSLTcpLib {
+namespace SSLTcpLib.Client {
     public class SSLTcpClient : IDisposable {
         /**
          * Public fields
@@ -32,12 +32,12 @@ namespace SSLTcpLib {
                 pClient.GetStream(),
                 false,
                 new RemoteCertificateValidationCallback(
-                    delegate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) {
+                    delegate (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) {
                         return true;
                     }
                 ),
                 new LocalCertificateSelectionCallback(
-                    delegate(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate remoteCertificate, string[] acceptableIssuers) {
+                    delegate (object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate remoteCertificate, string[] acceptableIssuers) {
                         return new X509Certificate2(pCert);
                     }
                 )
@@ -50,46 +50,62 @@ namespace SSLTcpLib {
                 return;
             }
 
-            Thread objThread = new Thread(new ThreadStart(RunListener));
-            objThread.Start();
+            StartListener();
 
             if (connected != null) {
                 connected(this);
             }
+
+            
+        }
+
+        private void StartListener() {
+            Thread objThread = new Thread(new ThreadStart(delegate () {
+                try {
+                    SSLTcpListener objListener = new SSLTcpListener(this);
+                    objListener.dataReceived += delegate (byte[] pData) {
+                        if (dataReceived != null) {
+                            dataReceived(pData);
+                        }
+                    };
+                    objListener.Run();
+                } catch (Exception ex) {
+                    Dispose();
+                    throw ex;
+                }
+            }));
+            objThread.Start();
         }
 
         /**
          * Connect the TcpClient
          */
-        public bool ConnectAsync(IPAddress pIP, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
+        public void ConnectAsync(IPAddress pIP, int pPort, string pX509CertificatePath, string pX509CertificatePassword) {
             TcpClient objClient = new TcpClient();
-            try {
-                if (!objClient.ConnectAsync(pIP, pPort).Wait(1000)) {
-                    throw new Exception("Connect failed");
-                };
-            } catch (Exception) {
-                return false;
-            }
+            if (!objClient.ConnectAsync(pIP, pPort).Wait(1000)) {
+                throw new Exception("Connect failed");
+            };
+
             X509Certificate2 clientCertificate;
             X509Certificate2Collection clientCertificatecollection = new X509Certificate2Collection();
             try {
                 clientCertificate = new X509Certificate2(pX509CertificatePath, pX509CertificatePassword);
                 clientCertificatecollection.Add(clientCertificate);
-            } catch (CryptographicException) {
+            } catch (CryptographicException ex) {
                 objClient.Close();
-                return false;
+                throw ex;
             }
 
             SslStream = new SslStream(
                 objClient.GetStream(),
                 false,
                 new RemoteCertificateValidationCallback(
-                    delegate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) {
+                    delegate (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) {
                         return true;
                     }
                 ),
                 new LocalCertificateSelectionCallback(
-                    delegate(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate remoteCertificate, string[] acceptableIssuers) {
+                    delegate (object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate remoteCertificate, string[] acceptableIssuers) {
                         var cert = new X509Certificate2(pX509CertificatePath, pX509CertificatePassword);
                         return cert;
                     }
@@ -98,79 +114,29 @@ namespace SSLTcpLib {
 
             try {
                 SslStream.AuthenticateAsClient(pIP.ToString(), clientCertificatecollection, SslProtocols.Tls, false);
-            } catch (AuthenticationException) {
+            } catch (AuthenticationException ex)  {
                 objClient.Close();
-                return false;
+                throw ex;
             }
 
-            Thread objThread = new Thread(new ThreadStart(RunListener));
-            objThread.Start();
+            StartListener();
 
             if (connected != null) {
                 connected(this);
             }
-            return true;
         }
 
         /**
-         * Reading
+         * Send data(bytes) to the other side
+         * Uses the PackagesHelper to 'package' the data
          */
-        private async void RunListener() {
+        public void Send(byte[] pData) {
             try {
-                while (true) {
-                    //Message length length = int 
-                    byte[] bytes = await ReadBytes(4);
-                    int msgLength = BitConverter.ToInt32(bytes, 0);
-
-                    //get the message
-                    if (msgLength > 0) {
-                        byte[] message = await ReadBytes(msgLength);
-
-                        if (dataReceived != null) {
-                            dataReceived(this, message);
-                        }
-                    } else {
-                        Dispose();
-                    }
-                }
-            } catch (Exception) {
+                SslStream.Write(PackageHelper.Create(pData));
+            } catch (Exception ex) {
                 Dispose();
+                throw ex;
             }
-        }
-
-        private async Task<byte[]> ReadBytes(int pAmount) {
-            byte[] buffer = new byte[pAmount];
-            int read = 0, offset = 0, toRead = pAmount;
-            while (toRead > 0 && (read = await SslStream.ReadAsync(buffer, offset, toRead)) > 0) {
-                toRead -= read;
-                offset += read;
-            }
-            if (toRead > 0) throw new EndOfStreamException();
-            return buffer;
-        }
-
-        /**
-         * Writing 
-         */
-        public bool Send(byte[] pData) {
-            try {
-                byte[] lenght = BitConverter.GetBytes(pData.Length);
-                Array.Resize(ref lenght, 4);
-
-                SslStream.Write(lenght);
-                if (!SslStream.WriteAsync(pData, 0, pData.Length).Wait(1000)) {
-                    throw new Exception("Send timed out");
-                }
-            } catch (Exception) {
-                Dispose();
-                return false;
-            }
-            return true;
-        }
-
-        public bool Send(string pData) {
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(pData);
-            return Send(bytes);
         }
 
         /**

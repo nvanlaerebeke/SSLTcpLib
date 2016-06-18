@@ -2,10 +2,9 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using SSLTcpLib.Client;
 
-namespace SSLTcpLib {
-    public delegate void ConnectionHandler(SSLTcpClient pClient);
-    public delegate void DataTransfer(SSLTcpClient pClient, byte[] pData);
+namespace SSLTcpLib.Server {
     
     public class SSLTcpServer : Base {
         private X509Certificate2 serverCertificate = null;

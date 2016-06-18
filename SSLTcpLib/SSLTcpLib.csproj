@@ -34,7 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="log4net">
-      <HintPath>packages\log4net.2.0.5\lib\net45-full\log4net.dll</HintPath>
+      <HintPath>..\..\HomeAutomation\trunk\Controller\packages\log4net.2.0.5\lib\net45-full\log4net.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -46,9 +46,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Base.cs" />
+    <Compile Include="Client\SSLTcpListener.cs" />
+    <Compile Include="Delegates.cs" />
+    <Compile Include="Exceptions\ProtocolException.cs" />
+    <Compile Include="Hash\CRC32.cs" />
+    <Compile Include="HexHelper.cs" />
+    <Compile Include="Receivers\TextReceiver.cs" />
+    <Compile Include="PackageHelper.cs" />
+    <Compile Include="Senders\TextSender.cs" />
     <Compile Include="Server\SSLTcpServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Client\SSLTcpClient.cs" />
+    <Compile Include="StreamHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

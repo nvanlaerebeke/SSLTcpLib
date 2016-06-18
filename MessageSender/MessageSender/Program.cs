@@ -22,9 +22,9 @@ namespace MessageSender {
 
             //Exit after 5 seconds
             Task.Run(() => {
-                System.Threading.Thread.Sleep(5000);
-                Environment.Exit(1);
+                System.Threading.Thread.Sleep(10000);
                 _wait = false;
+                Environment.Exit(1);
             });
 
             while (_wait) {
@@ -39,21 +39,21 @@ namespace MessageSender {
                 if (!success) {
                     pClient.Dispose();
                     Console.WriteLine("Sending message failed, exiting");
-                    Environment.Exit((success) ? 0 : 1);
                     _wait = false;
+                    Environment.Exit((success) ? 0 : 1);
                 }
             };
             objClient.dataReceived += delegate(SSLTcpClient pClient, byte[] pData) {
                 var strResponse = System.Text.Encoding.UTF8.GetString(pData); 
                 Console.WriteLine(strResponse);
-                Environment.Exit(0);
                 _wait = false;
+                Environment.Exit(0);
             };
             bool connected = objClient.ConnectAsync(pIP, pPort, pCertPath, pCertPassword);
             if (!connected) {
                 Console.WriteLine("Connect failed, exiting");
-                Environment.Exit(1);
                 _wait = false;
+                Environment.Exit(1);
             }
         }
     }

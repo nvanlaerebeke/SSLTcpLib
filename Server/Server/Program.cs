@@ -1,5 +1,6 @@
 ﻿using log4net;
-using SSLTcpLib;
+using SSLTcpLib.Client;
+using SSLTcpLib.Server;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -11,8 +12,6 @@ using System.Threading;
  *
  * Make the server cert by running:
  *   makecert -r -pe -n “CN=SslServer” -ss my -sr currentuser -sky exchange server.cer
- * 
- * 
  */
 
 namespace Server {
@@ -37,7 +36,7 @@ namespace Server {
             Log.Debug("Client Connected");
 
             //log the data we receive
-            pClient.dataReceived += delegate(SSLTcpClient Client, byte[] pData) {
+            pClient.dataReceived += delegate(byte[] pData) {
                 Log.Debug(System.Text.Encoding.UTF8.GetString(pData));
             };
 
@@ -46,13 +45,18 @@ namespace Server {
         }
 
         private static void SendData(SSLTcpClient pClient) {
+            SSLTcpLib.Senders.TextSender objSender = new SSLTcpLib.Senders.TextSender(pClient);
+
             //Start sending data
-            bool result;
-            do {
-                result = pClient.Send("This is the server");
-                System.Threading.Thread.Sleep(1000);
-            } while (result);
-            Log.Debug("Sending failed, stopping loop");
+            try {
+                do {
+                    objSender.Send("This is the server");
+                    System.Threading.Thread.Sleep(1000);
+                } while (true);
+            } catch(Exception ex) {
+                Log.Error("Sending failed, stopping loop");
+                Log.Error(ex);
+            }
         }
     }
 }
