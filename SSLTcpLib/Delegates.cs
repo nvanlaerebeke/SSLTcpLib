@@ -7,5 +7,5 @@ using SSLTcpLib.Client;
 
 namespace SSLTcpLib {
     public delegate void ConnectionHandler(SSLTcpClient pClient);
-    public delegate void DataTransfer(byte[] pData);
+    public delegate void DataTransfer(SSLTcpClient pClient, byte[] pData);
 }

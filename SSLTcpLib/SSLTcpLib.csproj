@@ -46,12 +46,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Base.cs" />
-    <Compile Include="Client\SSLTcpListener.cs" />
+    <Compile Include="Client\KeepAliveMonitor.cs" />
     <Compile Include="Delegates.cs" />
     <Compile Include="Exceptions\ProtocolException.cs" />
     <Compile Include="Hash\CRC32.cs" />
     <Compile Include="HexHelper.cs" />
-    <Compile Include="Receivers\TextReceiver.cs" />
     <Compile Include="PackageHelper.cs" />
     <Compile Include="Senders\TextSender.cs" />
     <Compile Include="Server\SSLTcpServer.cs" />

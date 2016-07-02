@@ -7,7 +7,7 @@ namespace SSLTcpLib {
     class PackageHelper {
         public static byte[] Create(byte[] pBytes) {
             List<byte> objBytes = new List<byte>();
-            //Start byte is 0x007E
+            //Start byte is 0x7E
             objBytes.Add((byte)0x7e);
             
             //2nd param is data lenght => 4bytes (32bit), maximum transmission is 2gb

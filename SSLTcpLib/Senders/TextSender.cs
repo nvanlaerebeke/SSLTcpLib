@@ -2,7 +2,7 @@
 
 namespace SSLTcpLib.Senders {
     public class TextSender {
-        SSLTcpClient _objClient;
+        private SSLTcpClient _objClient;
 
         public TextSender(SSLTcpClient pClient) {
             _objClient = pClient;
@@ -11,6 +11,6 @@ namespace SSLTcpLib.Senders {
         public void Send(string pData) {
             _objClient.Send(System.Text.Encoding.UTF8.GetBytes(pData));
         }
-
+        
     }
 }
