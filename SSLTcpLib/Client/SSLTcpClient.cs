@@ -127,10 +127,10 @@ namespace SSLTcpLib.Client {
             _colQueue = new System.Collections.Concurrent.BlockingCollection<byte[]>();
             _objSenderThread = new Thread(() => {
                 Thread.CurrentThread.Name = "SenderQueue";
-                Console.WriteLine("Send Loop");
+                //Console.WriteLine("Send Loop");
                 while (true) {
                     SendBytes(_colQueue.Take());
-                    Console.WriteLine("Bytes Send");
+                    //Console.WriteLine("Bytes Send");
                 }
             });
             _objSenderThread.Start();
@@ -145,7 +145,7 @@ namespace SSLTcpLib.Client {
                         //when receiving something else it could be considered a protocal error
                         //can discard the data or throw an exception
                         //right now we ignore any data send until we get a frame start byte
-                        Console.WriteLine("Start listening for next message...");
+                        //Console.WriteLine("Start listening for next message...");
                         byte[] arrStarByte;
                         do {
                             arrStarByte = ReadBytes(1);
@@ -240,7 +240,9 @@ namespace SSLTcpLib.Client {
          * Shutdown
          */
         public void Dispose() {
-            _objKeepAliveMonitor.Shutdown();
+            if (_objKeepAliveMonitor != null) {
+                _objKeepAliveMonitor.Shutdown();
+            }
             if (SslStream != null) {
                 SslStream.Close();
             }
