@@ -8,6 +8,8 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Collections.Generic;
+using SSLTcpLib.RateLimiting;
 
 namespace SSLTcpLib.Client {
     public class SSLTcpClient : IDisposable {
@@ -99,17 +101,17 @@ namespace SSLTcpLib.Client {
                 objClient.Close();
             }
 
+            Start();
+
             if (connected != null) {
                 connected(this);
             }
-
-            Start();
         }
 
         private void Start() {
             _objKeepAliveMonitor = new KeepAliveMonitor();
             _objKeepAliveMonitor.keepAliveSendTimeoutReceived += delegate (object sender, EventArgs e) {
-                Console.WriteLine("Sending Keepalive");
+                //Console.WriteLine("Sending Keepalive");
                 SslStream.WriteByte(0xff);
             };
             _objKeepAliveMonitor.shutdownReceived += delegate (object sender, EventArgs e) {
@@ -149,9 +151,9 @@ namespace SSLTcpLib.Client {
                         byte[] arrStarByte;
                         do {
                             arrStarByte = ReadBytes(1);
-                            Console.WriteLine("Data received");
+                            //Console.WriteLine("Data received");
                             if (BitConverter.ToUInt16(arrStarByte, 0) == 0xff) {
-                                Console.WriteLine("KeepAlive");
+                                //Console.WriteLine("KeepAlive");
                                 _objKeepAliveMonitor.DataReceivedStart();
                                 _objKeepAliveMonitor.DataReceivedStop();
                             }
@@ -199,7 +201,7 @@ namespace SSLTcpLib.Client {
         #endregion
 
         #region reading and sending bytes from stream
-        private byte[] ReadBytes(int pAmount) {
+        /*private byte[] ReadBytes(int pAmount) {
             byte[] buffer;
             if (pAmount == 1) {
                 buffer = new byte[2];
@@ -210,11 +212,41 @@ namespace SSLTcpLib.Client {
             while (toRead > 0 && (read = SslStream.Read(buffer, offset, toRead)) > 0) {
                 toRead -= read;
                 offset += read;
+
+                Limiter.AddAndWait(read);
             }
             if (toRead > 0) throw new EndOfStreamException();
             return buffer;
+        }*/
+
+        /// <summary>
+        ///  Reads x number of bytes from the stream
+        ///  If rate limitting is turned on the read will be slowed down if needed
+        ///  Reading happens in chunks of 1kb to prevent peaks when limiting the traffic
+        /// </summary>
+        /// <param name="pAmount"></param>
+        /// <returns></returns>
+        private byte[] ReadBytes(int pAmount) {
+            int totalToRead = pAmount;
+            List<byte> lstBytes = new List<byte>(pAmount);
+
+            while (totalToRead > 0) {
+                byte[] bufferedRead = (totalToRead >= 1000) ? new byte[1000] : new byte[totalToRead];
+                int toRead = bufferedRead.Length;
+                int offset = 0;
+                int read = 0;
+                while (toRead > 0 && (read = SslStream.Read(bufferedRead, offset, toRead)) > 0) {
+                    toRead -= read;
+                    totalToRead -= read;
+                    offset += read;
+                }
+                if (toRead > 0) throw new EndOfStreamException();
+                lstBytes.AddRange(bufferedRead);
+                Limiter.DownloadAddAndWait(read);
+            }
+            return (pAmount == 1) ? new byte[2] { lstBytes[0], 0 } : lstBytes.ToArray();
         }
-        
+
         /**
          * Send data(bytes) to the other side
          * Uses the PackagesHelper to 'package' the data
@@ -222,13 +254,28 @@ namespace SSLTcpLib.Client {
         private void SendBytes(byte[] pData) {
             try {
                 _objKeepAliveMonitor.DataSendStart();
-                SslStream.Write(PackageHelper.Create(pData));
+                List<byte> data = new List<byte>(PackageHelper.Create(pData));
+                int offset = 0;
+                do {
+                    byte[] tmpData;
+                    if (offset + 1000 >= data.Count) {
+                        tmpData = data.GetRange(offset, (data.Count - offset)).ToArray();
+                    } else {
+                        tmpData = data.GetRange(offset, 1000).ToArray();
+                    }
+                    SslStream.Write(tmpData);
+                    offset += 1000;
+                    if (offset < data.Count) {
+                        Limiter.UploadAddAndWait(1000);
+                    }
+                } while (offset < data.Count);
                 _objKeepAliveMonitor.DataSendStop();
             } catch (Exception ex) {
                 Console.WriteLine("Failed sending bytes: " + ex.Message);
                 Dispose();
             }
         }
+
 
         public void Send(byte[] pData) {
             _colQueue.Add(pData);

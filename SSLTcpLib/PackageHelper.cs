@@ -6,11 +6,13 @@ using System.Net.Sockets;
 namespace SSLTcpLib {
     class PackageHelper {
         public static byte[] Create(byte[] pBytes) {
-            List<byte> objBytes = new List<byte>();
+            //set capasity in advance for better performance
+            List<byte> objBytes = new List<byte>(1 + 4 + pBytes.Length + 4 + 1);
+
             //Start byte is 0x7E
             objBytes.Add((byte)0x7e);
             
-            //2nd param is data lenght => 4bytes (32bit), maximum transmission is 2gb
+            //2nd param is data length => 4bytes (32bit), maximum transmission is 2gb in theory
             objBytes.AddRange(BitConverter.GetBytes(pBytes.Length).Reverse<byte>());
 
             //add the data

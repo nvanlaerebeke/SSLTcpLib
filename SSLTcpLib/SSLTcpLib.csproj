@@ -53,6 +53,8 @@
     <Compile Include="Hash\CRC32.cs" />
     <Compile Include="HexHelper.cs" />
     <Compile Include="PackageHelper.cs" />
+    <Compile Include="RateLimiting\Limiter.cs" />
+    <Compile Include="Senders\ByteSender.cs" />
     <Compile Include="Senders\TextSender.cs" />
     <Compile Include="Server\SSLTcpServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
